@@ -1,0 +1,12 @@
+publish-jar:
+  image: $CI_REGISTRY/java-devops:1.8-v1.0.0
+  stage: publish-artifact
+  variables:
+    MAVEN_CLI_OPTS: "--batch-mode"
+  script:
+    - mvn $MAVEN_CLI_OPTS deploy -Dmaven.test.skip=true
+    - cd ~
+    - ls -la
+      
+  tags:
+    - linux

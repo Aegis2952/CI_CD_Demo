@@ -1,0 +1,19 @@
+pc_service_deploy_stage:
+    stage: deploy
+    image: $CF_CLI_IMAGE
+    script:
+      - cd $CI_PROJECT_DIR
+      - git clone https://$GIT_USER:$GIT_TOKEN@gitlab.com/services/devops/testdeployscript.git
+      - ls
+      - cp pcfdeployscript/deploy.sh .
+      - chmod 755 *
+      - ./deploy.sh api.stg.env.com EnvTst-Sdvlpr EnvTst-sdv1pr TestOrg EnvTst-Tst $APP_NAME $JAR_NAME $MANIFEST_FILE_NAME $CI_PIPELINE_IID
+    after_script:
+    # Test to make sure there were not critical/error exceptions thrown
+      - if [[ $(cat pcfdeployscript/log-output-$APP_NAME.txt | grep -o 'crit\|fail|exception' | wc -l) -gt 0 ]]; then echo "!!!! Too many critical/error exceptions found to proceed to production"; exit 1; else echo "Deployment Successful"; fi   
+    artifacts:
+      paths:
+        - pcfdeployscript/log-output-$APP_NAME.txt
+    when: always
+    tags:
+      - linux

@@ -1,0 +1,20 @@
+include:   
+    - 'build.yml'
+    - 'junit-test.yml'
+    - 'publish-artifact.yml'
+    - 'verify-build.yml'
+    - 'deploy-job.yml'
+    - 'validate-deploy.yml'
+   
+    
+
+
+stages:
+  - build
+  - test
+  - publish-artifact
+  - verify-build
+  - deploy
+  - validate-deploy
+ 
+

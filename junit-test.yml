@@ -1,0 +1,15 @@
+maven-test:
+  stage: test
+  script:
+    - mvn --version
+    - mvn test
+  artifacts:
+    when : always
+    paths:
+      - target/site/jacoco/*
+  except:
+     - tags
+  
+  when: always
+  tags:
+     - linux

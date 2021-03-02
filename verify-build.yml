@@ -1,0 +1,75 @@
+checkmarx_fortify_scan:
+   stage: verify-build
+   image: $CX_IMAGE
+  
+   variables:
+     CX_PROJECT_NAME: 'Application\Solution 1.0\BackendApps\$CI_PROJECT_NAME'     
+   script:
+   
+   - /opt/CxConsolePlugin-8.90.2/runCxConsole.sh scan -v -CxServer "$CX_HOST" -ProjectName "$CX_PROJECT_NAME" -Log "$CI_PROJECT_DIR"/CxScan.log -cxToken "$CX_TOKEN" -Locationtype folder -LocationPath "$CI_PROJECT_DIR" -ReportPDF "$CI_PROJECT_DIR//$CI_PROJECT_NAME".pdf -ReportCSV "$CI_PROJECT_DIR//$CI_PROJECT_NAME".csv -ReportXML "$CI_PROJECT_DIR//$CI_PROJECT_NAME".xml
+   
+   artifacts:
+     paths:
+      - $CI_PROJECT_DIR/$CI_PROJECT_NAME.pdf
+      
+   when: always
+   
+   tags:
+     - linux
+     
+.sonar_scan:
+  image: $CI_REGISTRY/java-maven:openjdk8-v2.0
+  stage: verify-build
+  variables:
+    SONAR_PROJECT_KEY: "connectivity-appliance-provisioning"   
+  before_script:
+    - echo "Starting SonarQube Analysis"
+  script:
+    - 'mvn clean package -Dmaven.test.skip=true sonar:sonar -Dsonar.host.url=$SONAR_HOST -Dsonar.login=$SONAR_LOGIN_TOKEN -Dsonar.projectKey=$SONAR_PROJECT_KEY'
+  after_script:
+    - echo "completed Sonar scan analysis"
+  
+  tags:
+    - linux
+
+code-quality:
+  image: $CI_REGISTRY/java-maven:openjdk8-v2.0
+  stage: verify-build
+  variables:
+    
+    SONAR_EXCLUSIONS: '*.xml'
+    SONAR_BRANCH: $CI_COMMIT_REF_NAME
+    SONAR_PROJECT_NAME: $CI_PROJECT_NAME
+  script:
+    - |
+      if [ $(curl --write-out "%{http_code}\n" --silent --output /dev/null --user $SONAR_LOGIN_TOKEN':' https://sonarqube.env.com/api/qualitygates/project_status?projectKey=$SONAR_PROJECT_NAME) = 404 ]
+      then
+        mvn dependency::tree clean package sonar:sonar -Dsonar.host.url=$SONAR_HOST -Dsonar.login=$SONAR_LOGIN_TOKEN -Dsonar.projectKey=$SONAR_PROJECT_NAME -Dsonar.projectName=$SONAR_PROJECT_NAME -Dsonar.exclusions=$SONAR_EXCLUSIONS
+      else
+        mvn dependency::tree clean package sonar:sonar -Dsonar.host.url=$SONAR_HOST -Dsonar.login=$SONAR_LOGIN_TOKEN -Dsonar.projectKey=$SONAR_PROJECT_NAME -Dsonar.projectName=$SONAR_PROJECT_NAME -Dsonar.branch.name=$SONAR_BRANCH -Dsonar.exclusions=$SONAR_EXCLUSIONS
+      fi
+    - echo "Validating the status"
+    - sleep 20 # waiting for 20 seconds to the server to process the scanned data and get the latest
+    - curl --user $SONAR_LOGIN_TOKEN':' https://sonarqube.env.com/api/qualitygates/project_status?projectKey=$SONAR_PROJECT_NAME # displaying the complete quality gate result to user
+    
+  allow_failure: false # Don't want to fail the pipleine for blueprint, so continue the pipleine if sonar scan fails
+  tags:
+    - linux
+
+BlackDuck-Java:
+  stage: verify-build
+  image: 'harbor.pc01.pcf.env.com/devops-images/java-devops:11-jdk-lts_v2.3.0'
+  variables:
+    SCM_SCAN_TYPE: maven
+    SCM_PROJECT_NAME: SRS_BE
+    SCM_PROJECT_VERSION: Release_Code_$CI_PROJECT_NAME
+    SCM_PATH: $CI_PROJECT_DIR
+  script:
+    - >-
+      echo "Required variables- SCM_PROJECT_NAME ==> $SCM_PROJECT_NAME +
+      SCM_PROJECT_VERSION ==> $SCM_PROJECT_VERSION + SCM_PATH ==> $SCM_PATH"
+    - >-
+      scmctl $BLACKDUCK_TOKEN $SCM_SCAN_TYPE $SCM_PROJECT_NAME
+      $SCM_PROJECT_VERSION $SCM_PATH
+  tags:
+    - linux

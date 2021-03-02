@@ -1,0 +1,17 @@
+image : $CI_REGISTRY/java-maven:openjdk8-v2.0
+
+
+variables:
+    APP_NAME: provisioning-service-CICD
+    JAR_NAME: provisioning-service
+    JAR_FILE: 'target/*.jar'
+    JAVA_FILES: 'src/main/**/*.java'
+    MANIFEST_FILE_NAME: 'manifest_template_STG_tst.yml'
+    
+    
+    
+include:
+    - project: 'services/BackendApps/scripts/commonscripts/commongitscripts'
+      ref: master
+      file: 'cicd-stages.yml'
+
